@@ -144,6 +144,19 @@ button {
   };
   $('flash').onclick = function () { this.style.display = 'none'; };
 
+  // Tenta tela cheia (esconde a barra do navegador do Kindle). O navegador só
+  // permite isso depois de um toque, então tenta a cada toque até conseguir.
+  function goFullscreen() {
+    var el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    try {
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch (e) {}
+  }
+  document.addEventListener('click', goFullscreen, true);
+  document.addEventListener('touchend', goFullscreen, true);
+
   function setTransform(el, t) { el.style.webkitTransform = t; el.style.transform = t; }
 
   // Cabe o layout (1590 x 1178) inteiro na tela e centraliza na vertical.
