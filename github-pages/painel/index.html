@@ -82,7 +82,8 @@ hr { border: 0; border-top: .3rem solid #fff; width: 52rem; margin: 3rem auto 2.
     el.style.webkitColumnCount = el.style.columnCount = cols;
     el.className = cols > 1 ? 'c' + cols : '';
     if (el.innerHTML !== html) el.innerHTML = html;
-    setText('label', 'postagens de hoje' + (lista.length ? ' (' + lista.length + ')' : ''));
+    // "9 postagens hoje" (com o número entre parênteses parecia o dia do mês)
+    setText('label', lista.length ? lista.length + (lista.length > 1 ? ' postagens hoje' : ' postagem hoje') : 'postagens de hoje');
     var prox = posts[amanha] || [];
     setText('tomorrow', prox.length ? 'amanhã: ' + prox.length + (prox.length > 1 ? ' postagens' : ' postagem') : '');
   }
