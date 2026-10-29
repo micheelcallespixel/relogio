@@ -102,7 +102,7 @@ button {
 <script>
 // ES5 puro: também roda no navegador antigo do Kindle.
 (function () {
-  var FOCO = 35, DESCANSO = 15; // minutos
+  var FOCO = 40, DESCANSO = 10; // minutos
   var DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
                'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -161,9 +161,17 @@ button {
   }
   function chime(up) {
     if (!audio) return;
-    // três notas subindo (hora de descansar) ou descendo (hora de focar), tocadas duas vezes
+    // depois de 40 min sem som o Safari pode suspender o áudio: acorda antes de tocar
+    if (audio.state === 'suspended' && audio.resume) {
+      audio.resume().then(function () { playChime(up); }, function () {});
+    } else {
+      playChime(up);
+    }
+  }
+  function playChime(up) {
+    // três notas subindo (hora de descansar) ou descendo (hora de focar), tocadas três vezes
     var notes = up ? [784, 988, 1319] : [1319, 988, 784], t0 = audio.currentTime + .05, i, rep;
-    for (rep = 0; rep < 2; rep++) {
+    for (rep = 0; rep < 3; rep++) {
       for (i = 0; i < notes.length; i++) {
         var o = audio.createOscillator(), g = audio.createGain(), t = t0 + rep * .9 + i * .18;
         o.type = 'sine'; o.frequency.value = notes[i];
