@@ -34,6 +34,8 @@ hr { border: 0; border-top: .3rem solid #fff; width: 55%; margin: 3rem auto 2.6r
 #list.multi { text-align: left; }
 #list div { -webkit-column-break-inside: avoid; break-inside: avoid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #list .vazio { font-weight: 400; }
+/* tela de limpeza: cobre tudo de branco e depois de preto para o e-ink apagar as sombras */
+#wipe { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 9; }
 #tomorrow { margin-top: 1.8rem; font-size: 2.1rem; font-weight: 400; line-height: 1.3; letter-spacing: .02em; }
 </style>
 </head>
@@ -49,6 +51,7 @@ hr { border: 0; border-top: .3rem solid #fff; width: 55%; margin: 3rem auto 2.6r
   <div id="list"></div>
   <div id="tomorrow"></div>
 </div>
+<div id="wipe"></div>
 
 <script>
 // ES5 puro: roda no navegador antigo do Kindle.
@@ -85,9 +88,23 @@ hr { border: 0; border-top: .3rem solid #fff; width: 55%; margin: 3rem auto 2.6r
     setText('tomorrow', prox.length ? 'amanhã: ' + prox.length + (prox.length > 1 ? ' postagens' : ' postagem') : '');
   }
 
+  // O e-ink só repinta o que mudou e deixa "sombra" do que havia antes (ghosting).
+  // Cobrir a tela de branco e depois de preto força o Kindle a repintar tudo.
+  var limpando = false;
+  function limpar() {
+    var w = $('wipe');
+    if (limpando) return;
+    limpando = true;
+    w.style.background = '#fff';
+    w.style.display = 'block';
+    setTimeout(function () { w.style.background = '#000'; }, 700);
+    setTimeout(function () { w.style.display = 'none'; limpando = false; }, 1300);
+  }
+
   function render(force) {
     var d = agora(), hoje = chave(d);
     if (!force && hoje === lastKey) return;
+    if (lastKey && hoje !== lastKey) setTimeout(limpar, 500);  // virada do dia
     lastKey = hoje;
     setText('weekday', DIAS[d.getUTCDay()]);
     setText('date', d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()]);
@@ -173,6 +190,10 @@ hr { border: 0; border-top: .3rem solid #fff; width: 55%; margin: 3rem auto 2.6r
   loadPosts();
   loadWeather();
   setInterval(render, 60000); // confere a virada do dia
+  // limpa as sombras: depois que tudo carregou, de hora em hora e quando tocar na tela
+  setTimeout(limpar, 4000);
+  setInterval(limpar, 60 * 60 * 1000);
+  document.addEventListener('click', limpar, true);
   setInterval(function () { loadPosts(); loadWeather(); }, 30 * 60 * 1000);
   // recarrega a página a cada 6 h, para pegar versões novas e se recuperar de qualquer travada
   setTimeout(function () { location.reload(); }, 6 * 3600 * 1000);
