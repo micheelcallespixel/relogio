@@ -11,11 +11,13 @@
 @font-face { font-family: Montserrat; font-weight: 700; src: url(../fonts/montserrat-700.ttf) format('truetype'); }
 
 /* Feito para e-ink: só preto e branco puros (o cinza vira um cinza claro pontilhado no Kindle).
-   Layout desenhado em 100 x 75rem; o script ajusta 1rem para caber inteiro na tela. */
+   As medidas são em rem e o script escolhe o maior 1rem (e o nº de colunas) em que tudo cabe,
+   com o Kindle em pé ou deitado. */
 html, body { margin: 0; padding: 0; background: #000; color: #fff; height: 100%; }
 html { font-size: 8px; }
 body { font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; text-align: center; overflow: hidden; text-transform: uppercase; }
-#content { width: 100rem; margin: 0 auto; }
+#content { margin: 0 auto; }
+#content > div { white-space: nowrap; }
 
 #brand { font-size: 2.6rem; font-weight: 400; line-height: 1; letter-spacing: .56em; padding-left: .56em; }
 
@@ -24,13 +26,12 @@ body { font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; text-align:
 #date { margin-top: 1.4rem; font-size: 4.2rem; font-weight: 500; line-height: 1; letter-spacing: -.02em; }
 #weather { margin-top: 1.8rem; font-size: 2.8rem; font-weight: 500; line-height: 1; letter-spacing: .04em; }
 
-hr { border: 0; border-top: .3rem solid #fff; width: 52rem; margin: 3rem auto 2.6rem auto; }
+hr { border: 0; border-top: .3rem solid #fff; width: 55%; margin: 3rem auto 2.6rem auto; }
 
 #label { font-size: 2.4rem; font-weight: 700; line-height: 1; letter-spacing: .4em; padding-left: .4em; }
-#list { margin: 2.2rem auto 0 auto; width: 84rem; font-size: 4.2rem; font-weight: 500; line-height: 1.4; letter-spacing: -.02em;
+#list { margin: 2.2rem auto 0 auto; width: 92%; font-size: 3.6rem; font-weight: 500; line-height: 1.4; letter-spacing: -.02em;
   -webkit-column-gap: 4rem; column-gap: 4rem; }
-#list.c2 { text-align: left; width: 90rem; font-size: 3.3rem; }
-#list.c3 { text-align: left; width: 98rem; font-size: 2.3rem; }
+#list.multi { text-align: left; }
 #list div { -webkit-column-break-inside: avoid; break-inside: avoid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #list .vazio { font-weight: 400; }
 #tomorrow { margin-top: 1.8rem; font-size: 2.1rem; font-weight: 400; line-height: 1.3; letter-spacing: .02em; }
@@ -77,10 +78,6 @@ hr { border: 0; border-top: .3rem solid #fff; width: 52rem; margin: 3rem auto 2.
     for (i = 0; i < lista.length; i++) html += '<div>' + curto(lista[i]) + '</div>';
     if (!lista.length) html = '<div class="vazio">nenhuma postagem hoje</div>';
     var el = $('list');
-    // até 3 nomes em coluna única; até 10 em duas; dia cheio em três, com letra menor
-    var cols = lista.length > 10 ? 3 : (lista.length > 3 ? 2 : 1);
-    el.style.webkitColumnCount = el.style.columnCount = cols;
-    el.className = cols > 1 ? 'c' + cols : '';
     if (el.innerHTML !== html) el.innerHTML = html;
     // "9 postagens hoje" (com o número entre parênteses parecia o dia do mês)
     setText('label', lista.length ? lista.length + (lista.length > 1 ? ' postagens hoje' : ' postagem hoje') : 'postagens de hoje');
@@ -95,6 +92,7 @@ hr { border: 0; border-top: .3rem solid #fff; width: 52rem; margin: 3rem auto 2.
     setText('weekday', DIAS[d.getUTCDay()]);
     setText('date', d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()]);
     renderList(hoje, chave(new Date(d.getTime() + 86400000)));
+    fit();
   }
 
   function get(url, ok) {
@@ -123,14 +121,46 @@ hr { border: 0; border-top: .3rem solid #fff; width: 52rem; margin: 3rem auto 2.
       var chuva = j.daily.precipitation_probability_max[0];
       setText('weather', t + '° ' + cond + ' · máx ' + mx + '° · mín ' + mn + '°' +
         (chuva >= 30 ? ' · chuva ' + chuva + '%' : ''));
+      fit();
     });
   }
 
-  // 1rem = 1/100 da largura útil, limitada pela altura (layout de 100 x 75rem); centraliza na vertical
+  // Coube? Nada passa da altura e nenhuma linha é cortada na largura.
+  function cabe(h) {
+    var c = $('content'), els = c.getElementsByTagName('div'), i;
+    if (c.offsetHeight > h * 0.94) return false;
+    for (i = 0; i < els.length; i++) {
+      if (els[i].id !== 'list' && els[i].scrollWidth > els[i].clientWidth) return false;
+    }
+    return true;
+  }
+
+  function setCols(n) {
+    var el = $('list');
+    el.style.webkitColumnCount = el.style.columnCount = n;
+    el.className = n > 1 ? 'multi' : '';
+  }
+
+  // Para 1, 2 e 3 colunas de nomes, acha (por busca binária) o maior 1rem em que tudo cabe;
+  // fica com a combinação de letra maior. Assim serve em pé, deitado e em dia cheio.
   function fit() {
-    var w = window.innerWidth, h = window.innerHeight, c = $('content');
-    document.documentElement.style.fontSize = Math.min(w, h * 100 / 75) / 100 + 'px';
+    var w = window.innerWidth, h = window.innerHeight, c = $('content'), root = document.documentElement;
+    var n = $('list').children.length, best = { u: 0, cols: 1 }, cols, lo, hi, mid, k;
+    c.style.width = w + 'px';
     c.style.paddingTop = '0';
+    for (cols = 1; cols <= Math.min(3, Math.max(1, n)); cols++) {
+      setCols(cols);
+      lo = 1; hi = Math.min(w, h) / 20;
+      for (k = 0; k < 14; k++) {
+        mid = (lo + hi) / 2;
+        root.style.fontSize = mid + 'px';
+        if (cabe(h)) lo = mid; else hi = mid;
+      }
+      if (lo > best.u) best = { u: lo, cols: cols };
+    }
+    setCols(best.cols);
+    // 3% de folga: o arredondamento de pixel do Kindle pode cortar um nome no limite
+    root.style.fontSize = best.u * 0.97 + 'px';
     c.style.paddingTop = Math.max(0, (h - c.offsetHeight) / 2) + 'px';
   }
   window.onresize = fit;
