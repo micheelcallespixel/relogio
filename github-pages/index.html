@@ -168,6 +168,17 @@ button {
       playChime(up);
     }
   }
+  // um bip curto só (ao iniciar)
+  function beep() {
+    if (!audio) return;
+    var o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + .05;
+    o.type = 'sine'; o.frequency.value = 988;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(.35, t + .02);
+    g.gain.exponentialRampToValueAtTime(.001, t + .25);
+    o.connect(g); g.connect(audio.destination);
+    o.start(t); o.stop(t + .3);
+  }
   function playChime(up) {
     // três notas subindo (hora de descansar) ou descendo (hora de focar), tocadas três vezes
     var notes = up ? [784, 988, 1319] : [1319, 988, 784], t0 = audio.currentTime + .05, i, rep;
@@ -201,7 +212,10 @@ button {
     setText('bStart', running ? 'PARAR' : 'INICIAR');
     $('content').className = running ? 'on' : '';
     $('bar').style.width = running ? (100 * (1 - r / (minutes() * 60))) + '%' : '0';
-    setText('stats', (running ? '<b>' + (mode === 'rest' ? 'descanso' : 'foco') + '</b> | ' : '') + total +
+    // rodando: "FOCO ATÉ 10:52", a hora (de Brasília) do próximo apito
+    var fim = new Date(endAt - 3 * 3600 * 1000);
+    setText('stats', (running ? '<b>' + (mode === 'rest' ? 'descanso' : 'foco') + ' até ' +
+      pad(fim.getUTCHours()) + ':' + pad(fim.getUTCMinutes()) + '</b> | ' : '') + total +
       (total > 1 ? ' pomodoros concluídos' : ' pomodoro concluído'));
   }
 
@@ -227,7 +241,7 @@ button {
   $('bStart').onclick = function () {
     unlockAudio();
     if (running) { running = false; mode = 'focus'; }
-    else start();
+    else { start(); beep(); } // o bip confirma que o som está liberado para o alarme
     render();
   };
   $('flash').onclick = function () { this.style.display = 'none'; };
