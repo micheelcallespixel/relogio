@@ -2,51 +2,86 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- Na Tela de Início do iPad abre como app: tela cheia, sem barra do Safari -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CALLESLAB">
+<meta name="theme-color" content="#000000">
 <title>Relógio Pomodoro</title>
 <style>
-/* Montserrat fica na pasta fonts/ ao lado deste arquivo: funciona sem internet */
+/* Montserrat fica na pasta fonts/ ao lado deste arquivo */
 @font-face { font-family: Montserrat; font-weight: 400; src: url(fonts/montserrat-400.ttf) format('truetype'); }
 @font-face { font-family: Montserrat; font-weight: 500; src: url(fonts/montserrat-500.ttf) format('truetype'); }
 @font-face { font-family: Montserrat; font-weight: 700; src: url(fonts/montserrat-700.ttf) format('truetype'); }
 @font-face { font-family: Montserrat; font-weight: 800; src: url(fonts/montserrat-800.ttf) format('truetype'); }
-/* Feito para e-ink, em paisagem. Medidas tiradas do layout de 1590 x 1178:
+
+/* Amarelo CallesLab: troque aqui para mudar a cor de destaque em tudo */
+:root { --accent: #FFC20E; --card: #1a1a1a; }
+
+/* Medidas tiradas do layout de 1590 x 1178:
    1rem = 1/100 da largura do layout; o script ajusta 1rem para caber inteiro na tela. */
 html, body { margin: 0; padding: 0; background: #000; color: #fff; height: 100%; }
 html { font-size: 15.9px; }
-body { font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; text-align: center; overflow: hidden; text-transform: uppercase; }
-/* #main é a "tela" em paisagem; num Kindle em pé o script gira ela 90° */
-#main { position: absolute; left: 0; top: 0; overflow: hidden;
-  -webkit-transform-origin: 0 0; transform-origin: 0 0; }
+body { font-family: Montserrat, "Helvetica Neue", Arial, sans-serif; text-align: center; overflow: hidden; text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+/* #main ocupa a tela inteira; o aviso de fim de fase cobre ele todo */
+#main { position: absolute; left: 0; top: 0; overflow: hidden; }
 #content { width: 100rem; margin: 0 auto; }
 .row { font-size: 0; white-space: nowrap; line-height: 0; }
 
 #brand { font-size: 3.33rem; font-weight: 400; line-height: 1; letter-spacing: .56em; padding-left: .56em; }
 
-/* placas: cinza bem escuro, cantos arredondados */
-.card { display: inline-block; background: #1a1a1a; font-weight: 700; vertical-align: top; }
+/* Placas: duas metades fixas; ao trocar o dígito, duas abas viram por cima (placa caindo) */
+.card { display: inline-block; position: relative; font-weight: 700; vertical-align: top;
+  -webkit-perspective: 4em; perspective: 4em; }
+.h { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; background: var(--card);
+  -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.h.t { top: 0; border-radius: var(--r) var(--r) 0 0; -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%; }
+.h.b { bottom: 0; border-radius: 0 0 var(--r) var(--r); -webkit-transform-origin: 50% 0; transform-origin: 50% 0; }
+.h i { position: absolute; left: 0; right: 0; height: 200%; font-style: normal; }
+.h.t i { top: 0; }
+.h.b i { top: -100%; }
+/* o vinco do meio, bem discreto */
+.card:after { content: ""; position: absolute; z-index: 3; left: 0; right: 0; top: 50%; height: 1px; margin-top: -.5px; background: rgba(0,0,0,.55); }
+.h.ft { z-index: 2; -webkit-animation: flipTop .2s ease-in forwards; animation: flipTop .2s ease-in forwards; }
+.h.fb { z-index: 2; -webkit-transform: rotateX(90deg); transform: rotateX(90deg);
+  -webkit-animation: flipBot .2s .2s ease-out forwards; animation: flipBot .2s .2s ease-out forwards; }
+@-webkit-keyframes flipTop { to { -webkit-transform: rotateX(-90deg); filter: brightness(.6); } }
+@keyframes flipTop { to { transform: rotateX(-90deg); filter: brightness(.6); } }
+@-webkit-keyframes flipBot { from { -webkit-transform: rotateX(90deg); filter: brightness(.6); } to { -webkit-transform: rotateX(0); } }
+@keyframes flipBot { from { transform: rotateX(90deg); filter: brightness(.6); } to { transform: rotateX(0); } }
 .colon { display: inline-block; font-weight: 700; vertical-align: top; }
 
 #clock { margin-top: 2.67rem; }
-#clock .card { width: 14.85rem; height: 20.06rem; line-height: 20.06rem; margin: 0 .22rem; font-size: 19.3rem; border-radius: 1.4rem; }
+#clock .card { --r: 1.4rem; width: 14.85rem; height: 20.06rem; line-height: 20.06rem; margin: 0 .22rem; font-size: 19.3rem; }
 #clock .colon { width: 2rem; height: 20.06rem; line-height: 19.4rem; font-size: 5.2rem; }
 
 #date { margin-top: 2.5rem; font-size: 3.77rem; font-weight: 500; line-height: 1; letter-spacing: -.05em; }
 
 #bottom { margin-top: 3rem; }
 #timer { display: inline-block; vertical-align: top; }
-#timer .card { width: 7.1rem; height: 9.56rem; line-height: 9.56rem; margin: 0 .1rem; font-size: 8.75rem; border-radius: 1.1rem; }
+#timer .card { --r: 1.1rem; width: 7.1rem; height: 9.56rem; line-height: 9.56rem; margin: 0 .1rem; font-size: 8.75rem; }
 #timer .colon { width: 1.07rem; height: 9.56rem; line-height: 9.2rem; font-size: 2.6rem; }
+/* rodando: números do timer e dois-pontos em amarelo */
+.on #timer { color: var(--accent); }
 button {
   display: inline-block; vertical-align: top; margin: 0 0 0 2.4rem; padding: 0; border: 0;
-  width: 30.2rem; height: 9.56rem; background: #1a1a1a; color: #fff; border-radius: 1.1rem;
+  width: 30.2rem; height: 9.56rem; background: var(--card); color: #fff; border-radius: 1.1rem;
   font-family: inherit; font-size: 7rem; font-weight: 800; letter-spacing: -.05em; line-height: 9.56rem;
-  -webkit-appearance: none; outline: none;
+  -webkit-appearance: none; outline: none; cursor: pointer;
 }
+.on button { background: var(--accent); color: #000; }
 
-#stats { margin-top: 3.4rem; font-size: 3.52rem; font-weight: 500; line-height: 1; letter-spacing: -.05em; }
+/* barra de progresso da fase, na largura do relógio */
+#progress { width: 62.7rem; height: .7rem; margin: 2.6rem auto 0 auto; background: var(--card); border-radius: .35rem; overflow: hidden; }
+#bar { width: 0; height: 100%; background: var(--accent); border-radius: .35rem; }
 
-#flash { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: #fff; color: #000;
+#stats { margin-top: 2.6rem; font-size: 3.52rem; font-weight: 500; line-height: 1; letter-spacing: -.05em; }
+#stats b { font-weight: 500; color: var(--accent); }
+
+#flash { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--accent); color: #000;
   font-size: 7rem; font-weight: 800; letter-spacing: -.03em; }
 </style>
 </head>
@@ -58,18 +93,21 @@ button {
     <div id="clock" class="row"></div>
     <div id="date"></div>
     <div id="bottom" class="row"><span id="timer"></span><button id="bStart">INICIAR</button></div>
+    <div id="progress"><div id="bar"></div></div>
     <div id="stats"></div>
   </div>
   <div id="flash"></div>
 </div>
 
 <script>
-// ES5 puro: o navegador do Kindle é antigo.
+// ES5 puro: também roda no navegador antigo do Kindle.
 (function () {
   var FOCO = 35, DESCANSO = 15; // minutos
   var DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
                'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  // No e-ink a placa virando só pisca e deixa rastro: lá as placas trocam direto
+  var ANIM = !/Kindle/i.test(navigator.userAgent);
 
   var mode = 'focus';  // focus | rest
   var total = 0;       // pomodoros concluídos
@@ -81,22 +119,61 @@ button {
   function setText(id, txt) { var el = $(id); if (el.innerHTML !== txt) el.innerHTML = txt; }
   function minutes() { return mode === 'focus' ? FOCO : DESCANSO; }
 
-  // Mostra "12:05" em placas, uma por dígito. Só mexe nas placas cujo dígito mudou (e-ink agradece).
+  function half(cls, c) { return '<span class="h ' + cls + '"><i>' + c + '</i></span>'; }
+  function cardStill(c) { return half('t', c) + half('b', c); }
+  // nova em cima e antiga embaixo; a aba de cima (antiga) cai e a de baixo (nova) fecha
+  function cardFlip(from, to) { return half('t', to) + half('b', from) + half('t ft', from) + half('b fb', to); }
+
+  // Mostra "12:05" em placas, uma por dígito. Só mexe nas placas cujo dígito mudou.
   function renderCards(el, str) {
-    var prev = el.getAttribute('data-v') || '', i, c, out = '';
+    var prev = el.getAttribute('data-v') || '', i, c, card, out = '';
     if (prev.length !== str.length) {
       for (i = 0; i < str.length; i++) {
         c = str.charAt(i);
-        out += c === ':' ? '<span class="colon">:</span>' : '<span class="card">' + c + '</span>';
+        out += c === ':' ? '<span class="colon">:</span>' : '<span class="card">' + cardStill(c) + '</span>';
       }
       el.innerHTML = out;
     } else {
       for (i = 0; i < str.length; i++) {
         c = str.charAt(i);
-        if (c !== ':' && c !== prev.charAt(i)) el.children[i].innerHTML = c;
+        if (c === ':' || c === prev.charAt(i)) continue;
+        card = el.children[i];
+        if (!ANIM) { card.innerHTML = cardStill(c); continue; }
+        card.innerHTML = cardFlip(prev.charAt(i), c);
+        clearTimeout(card._t);
+        card._t = setTimeout((function (k, d) { return function () { k.innerHTML = cardStill(d); }; })(card, c), 450);
       }
     }
     el.setAttribute('data-v', str);
+  }
+
+  // ---- som de alarme (gerado na hora, sem arquivo) ----
+  var audio = null;
+  function unlockAudio() {
+    // o iPad só libera som depois de um toque: cria e "acorda" o áudio no INICIAR
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (!audio) audio = new AC();
+    if (audio.resume) audio.resume();
+    var b = audio.createBuffer(1, 1, 22050), s = audio.createBufferSource();
+    s.buffer = b; s.connect(audio.destination); s.start ? s.start(0) : s.noteOn(0);
+  }
+  function chime(up) {
+    if (!audio) return;
+    // três notas subindo (hora de descansar) ou descendo (hora de focar), tocadas duas vezes
+    var notes = up ? [784, 988, 1319] : [1319, 988, 784], t0 = audio.currentTime + .05, i, rep;
+    for (rep = 0; rep < 2; rep++) {
+      for (i = 0; i < notes.length; i++) {
+        var o = audio.createOscillator(), g = audio.createGain(), t = t0 + rep * .9 + i * .18;
+        o.type = 'sine'; o.frequency.value = notes[i];
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(.35, t + .02);
+        g.gain.exponentialRampToValueAtTime(.001, t + .6);
+        o.connect(g); g.connect(audio.destination);
+        o.start(t); o.stop(t + .65);
+      }
+    }
   }
 
   function remaining() {
@@ -114,12 +191,14 @@ button {
     setText('date', DIAS[d.getUTCDay()] + ' | ' + d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()]);
     renderCards($('timer'), pad(Math.floor(r / 60)) + ':' + pad(r % 60));
     setText('bStart', running ? 'PARAR' : 'INICIAR');
-    setText('stats', (mode === 'rest' ? 'descanso | ' : '') + total +
+    $('content').className = running ? 'on' : '';
+    $('bar').style.width = running ? (100 * (1 - r / (minutes() * 60))) + '%' : '0';
+    setText('stats', (running ? '<b>' + (mode === 'rest' ? 'descanso' : 'foco') + '</b> | ' : '') + total +
       (total > 1 ? ' pomodoros concluídos' : ' pomodoro concluído'));
   }
 
   function flash(msg) {
-    // inverte a tela inteira por alguns segundos: o "alarme" visual do e-ink
+    // a tela inteira fica amarela por alguns segundos, junto com o som
     var f = $('flash');
     f.innerHTML = msg;
     f.style.display = 'block';
@@ -129,8 +208,8 @@ button {
   function tick() {
     if (running && remaining() <= 0) {
       // foco e descanso se alternam sozinhos até alguém apertar PARAR
-      if (mode === 'focus') { total++; mode = 'rest'; flash('HORA DO DESCANSO'); }
-      else { mode = 'focus'; flash('HORA DE FOCAR'); }
+      if (mode === 'focus') { total++; mode = 'rest'; flash('HORA DO DESCANSO'); chime(true); }
+      else { mode = 'focus'; flash('HORA DE FOCAR'); chime(false); }
       start();
     }
     render();
@@ -138,40 +217,39 @@ button {
 
   // PARAR zera e volta para o começo do foco
   $('bStart').onclick = function () {
+    unlockAudio();
     if (running) { running = false; mode = 'focus'; }
     else start();
     render();
   };
   $('flash').onclick = function () { this.style.display = 'none'; };
 
-  // Tenta tela cheia (esconde a barra do navegador do Kindle). O navegador só
-  // permite isso depois de um toque, então tenta a cada toque até conseguir.
-  function goFullscreen() {
-    var el = document.documentElement;
-    if (document.fullscreenElement || document.webkitFullscreenElement) return;
-    try {
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    } catch (e) {}
+  // Mantém a tela acesa enquanto o relógio está aberto (Safari/Chrome com Wake Lock).
+  // O navegador só libera depois de um toque e solta ao trocar de app, então pede de novo.
+  var wakeLock = null;
+  function keepAwake() {
+    if (wakeLock || !navigator.wakeLock) return;
+    navigator.wakeLock.request('screen').then(function (l) {
+      wakeLock = l;
+      l.addEventListener('release', function () { wakeLock = null; });
+    }, function () {});
   }
-  document.addEventListener('click', goFullscreen, true);
-  document.addEventListener('touchend', goFullscreen, true);
+  document.addEventListener('click', keepAwake, true);
+  document.addEventListener('touchend', keepAwake, true);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') keepAwake();
+  });
 
-  function setTransform(el, t) { el.style.webkitTransform = t; el.style.transform = t; }
-
-  // Cabe o layout (1590 x 1178) inteiro na tela e centraliza na vertical.
-  // Com a tela em pé (Kindle), gira tudo 90° para usar o aparelho deitado.
+  // Cabe o layout (1590 x 1178) inteiro na tela, com folga nas laterais, e centraliza na vertical.
   function fit() {
     var w = window.innerWidth, h = window.innerHeight, m = $('main'), c = $('content');
-    var rot = h > w, W = rot ? h : w, H = rot ? w : h;
-    var u = Math.min(W, H * 1590 / 1178) / 100;
+    var u = Math.min(w, h * 1590 / 1178) / 100;
     document.documentElement.style.fontSize = u + 'px';
-    m.style.width = W + 'px';
-    m.style.height = H + 'px';
-    setTransform(m, rot ? 'translate(' + w + 'px,0) rotate(90deg)' : 'none');
+    m.style.width = w + 'px';
+    m.style.height = h + 'px';
     c.style.paddingTop = '0';
-    c.style.paddingTop = Math.max(0, (H - c.offsetHeight) / 2) + 'px';
-    $('flash').style.lineHeight = H + 'px';
+    c.style.paddingTop = Math.max(0, (h - c.offsetHeight) / 2) + 'px';
+    $('flash').style.lineHeight = h + 'px';
   }
   window.onresize = fit;
   // a fonte pode chegar depois e mudar as alturas
