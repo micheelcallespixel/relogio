@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Demandas CALLESLAB</title>
+<style>
+@font-face { font-family: Montserrat; font-weight: 400; src: url(../fonts/montserrat-400.ttf) format('truetype'); }
+@font-face { font-family: Montserrat; font-weight: 500; src: url(../fonts/montserrat-500.ttf) format('truetype'); }
+@font-face { font-family: Montserrat; font-weight: 700; src: url(../fonts/montserrat-700.ttf) format('truetype'); }
+@font-face { font-family: Montserrat; font-weight: 800; src: url(../fonts/montserrat-800.ttf) format('truetype'); }
+
+:root { --accent: #FFC20E; --card: #1a1a1a; --muted: #9a9a9a; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #000; color: #fff; min-height: 100%; }
+body { font-family: Montserrat, Arial, sans-serif; text-align: center; -webkit-tap-highlight-color: transparent;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); }
+.hide { display: none !important; }
+
+#brand { font-size: 13px; letter-spacing: .56em; padding-left: .56em; color: var(--accent); margin-top: 8px; }
+#hoje { margin-top: 10px; font-size: 14px; font-weight: 500; text-transform: uppercase; color: var(--muted); letter-spacing: .02em; }
+
+/* etapas do dia: 3 bolinhas */
+#etapas { margin: 22px auto 0; display: flex; justify-content: center; gap: 10px; }
+#etapas span { width: 34px; height: 6px; border-radius: 3px; background: var(--card); }
+#etapas span.ok { background: var(--accent); }
+#etapas span.agora { background: #fff; }
+
+#card { margin: 26px auto 0; max-width: 460px; background: var(--card); border-radius: 22px; padding: 30px 22px 26px; }
+#rotulo { font-size: 12px; font-weight: 700; letter-spacing: .3em; color: var(--accent); text-transform: uppercase; }
+#titulo { margin-top: 14px; font-size: 25px; font-weight: 800; line-height: 1.2; letter-spacing: -.02em; text-transform: uppercase; }
+#detalhe { margin-top: 12px; font-size: 15px; font-weight: 500; color: var(--muted); line-height: 1.4; }
+#crono { margin-top: 22px; font-size: 58px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.btn { display: block; width: 100%; margin-top: 24px; border: 0; border-radius: 16px; padding: 20px 10px;
+  font-family: inherit; font-size: 21px; font-weight: 800; letter-spacing: -.01em; text-transform: uppercase;
+  background: var(--accent); color: #000; cursor: pointer; }
+.btn.sec { background: #000; color: #fff; border: 2px solid #fff; }
+.btn:disabled { opacity: .5; }
+
+#avisos { margin: 22px auto 0; max-width: 460px; }
+#avisos .btn { font-size: 15px; padding: 16px 10px; }
+#avisos p { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 10px 0 0; }
+
+/* login */
+#login { max-width: 400px; margin: 40px auto 0; }
+#login input { display: block; width: 100%; margin-top: 12px; padding: 16px; border-radius: 12px; border: 2px solid #333;
+  background: #000; color: #fff; font: 500 17px Montserrat, Arial, sans-serif; }
+#erro { color: #ff6b6b; font-size: 14px; margin-top: 12px; min-height: 18px; }
+
+/* alarme: tela inteira amarela com teclado de senha */
+#alarme { position: fixed; inset: 0; z-index: 10; background: var(--accent); color: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+#alarme.pisca { background: #000; color: var(--accent); }
+#aTitulo { font-size: 30px; font-weight: 800; text-transform: uppercase; line-height: 1.1; letter-spacing: -.02em; }
+#aTexto { margin-top: 10px; font-size: 16px; font-weight: 500; }
+#pontos { margin: 24px 0 18px; display: flex; gap: 16px; }
+#pontos span { width: 18px; height: 18px; border-radius: 50%; border: 3px solid currentColor; }
+#pontos span.cheio { background: currentColor; }
+#teclado { display: grid; grid-template-columns: repeat(3, 78px); gap: 12px; }
+#teclado button { height: 78px; border-radius: 50%; border: 3px solid currentColor; background: transparent; color: inherit;
+  font: 700 28px Montserrat, Arial, sans-serif; }
+#alarme.errou #pontos { animation: treme .3s; }
+@keyframes treme { 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+#ativarSom { margin-top: 18px; font-size: 13px; font-weight: 700; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div id="brand">CALLESLAB</div>
+<div id="hoje"></div>
+
+<!-- login (uma vez por aparelho) -->
+<div id="login" class="hide">
+  <div id="rotulo2" style="font-size:12px;font-weight:700;letter-spacing:.3em;color:var(--accent)">ENTRAR</div>
+  <input id="email" type="email" placeholder="E-mail" autocomplete="username">
+  <input id="senha" type="password" placeholder="Senha" autocomplete="current-password">
+  <button class="btn" id="bEntrar">Entrar</button>
+  <div id="erro"></div>
+</div>
+
+<div id="app" class="hide">
+  <div id="etapas"><span></span><span></span><span></span></div>
+  <div id="card">
+    <div id="rotulo"></div>
+    <div id="titulo"></div>
+    <div id="detalhe"></div>
+    <div id="crono" class="hide"></div>
+    <button class="btn hide" id="bAcao"></button>
+  </div>
+  <div id="avisos"></div>
+</div>
+
+<div id="alarme" class="hide">
+  <div id="aTitulo"></div>
+  <div id="aTexto"></div>
+  <div id="pontos"><span></span><span></span><span></span><span></span></div>
+  <div id="teclado"></div>
+  <div id="ativarSom" class="hide">Toque aqui se não estiver ouvindo o alarme</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script>
+(function () {
+  // A senha que para o alarme é um combinado (o Thalles sabe qual é); fica só o resumo dela aqui.
+  var PIN_HASH = '5549c0d54cb3bce4019f7f4b0f9ebad217bf9f417e8e14d547bdb467ccb0dc4c';
+  var MANHA = 8 * 60, NOITE = 20 * 60;   // minutos do dia em que o alarme toca (Brasília)
+
+  var $ = function (id) { return document.getElementById(id); };
+  var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  var DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+  // Horário de Brasília (UTC-3), independente do fuso do aparelho
+  function brt(ms) { return new Date((ms || Date.now()) - 3 * 3600 * 1000); }
+  function diaKey() { return brt().toISOString().slice(0, 10); }
+  function minutos() { var d = brt(); return d.getUTCHours() * 60 + d.getUTCMinutes(); }
+  function diaUtil() { var w = brt().getUTCDay(); return w >= 1 && w <= 5; }
+  function hhmm(ms) { var d = brt(ms); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()); }
+  function dur(ms) {
+    var s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return (h ? h + ':' + pad(m) : m) + ':' + pad(s % 60);
+  }
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  var auth = firebase.auth(), db = firebase.firestore();
+  var s = {}, key = '', unsub = null, user = null;
+
+  // ---------- login ----------
+  $('bEntrar').onclick = function () {
+    $('erro').textContent = '';
+    auth.signInWithEmailAndPassword($('email').value.trim(), $('senha').value)
+      .catch(function () { $('erro').textContent = 'E-mail ou senha errados.'; });
+  };
+  auth.onAuthStateChanged(function (u) {
+    user = u;
+    $('login').classList.toggle('hide', !!u);
+    $('app').classList.toggle('hide', !u);
+    if (u) { ouvirDia(); prepararAvisos(); }
+  });
+
+  // ---------- o dia no banco: dias/AAAA-MM-DD ----------
+  function ouvirDia() {
+    if (key === diaKey() && unsub) return;
+    if (unsub) unsub();
+    key = diaKey(); s = {};
+    unsub = db.collection('dias').doc(key).onSnapshot(function (doc) { s = doc.data() || {}; render(); });
+  }
+  function gravar(campos) { return db.collection('dias').doc(key).set(campos, { merge: true }); }
+
+  // ---------- em que etapa o dia está ----------
+  function etapa() {
+    var min = minutos();
+    if (!diaUtil()) return { tipo: 'livre', titulo: 'Fim de semana', detalhe: 'Sem demandas hoje. Bom descanso!' };
+    if (!s.m_senha && (s.m_push || min >= MANHA)) return { tipo: 'alarme', qual: 'manha' };
+    if (!s.m_senha) return { tipo: 'espera', titulo: 'Bom dia!', detalhe: 'O alarme da primeira demanda toca às 8h.' };
+    if (s.m_senha && !s.n_senha && (s.n_push || min >= NOITE)) return { tipo: 'alarme', qual: 'noite' };
+
+    var d;
+    for (var i = 1; i <= 2; i++) {
+      d = 'd' + i;
+      if (!s[d + '_inicio']) return { tipo: 'pronta', d: d, n: i };
+      if (!s[d + '_fim']) return { tipo: 'rodando', d: d, n: i };
+      if (!s[d + '_ok']) return { tipo: 'aprovacao', d: d, n: i };
+    }
+    if (!s.n_senha) return { tipo: 'espera', titulo: 'Manhã concluída ✓', detalhe: 'A próxima demanda começa com o alarme das 20h.' };
+    if (!s.d3_lib) return { tipo: 'liberacao' };
+    if (!s.d3_inicio) return { tipo: 'pronta', d: 'd3', n: 3 };
+    if (!s.d3_fim) return { tipo: 'rodando', d: 'd3', n: 3 };
+    if (!s.d3_ok) return { tipo: 'aprovacao', d: 'd3', n: 3 };
+    return { tipo: 'fim', titulo: 'Dia encerrado ✓', detalhe: 'Todas as demandas de hoje foram aprovadas.' };
+  }
+
+  function render() {
+    if (!user) return;
+    if (key !== diaKey()) { ouvirDia(); return; }
+    var d = brt(), e = etapa();
+    $('hoje').textContent = DIAS[d.getUTCDay()] + ' | ' + d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()] + ' | ' + hhmm();
+
+    // barrinhas: verde-amarelo = aprovada, branca = a da vez
+    var bar = $('etapas').children;
+    for (var i = 0; i < 3; i++) {
+      var di = 'd' + (i + 1);
+      bar[i].className = s[di + '_ok'] ? 'ok' : (e.d === di ? 'agora' : '');
+    }
+
+    if (e.tipo === 'alarme') tocarAlarme(e.qual); else pararAlarme();
+
+    var crono = $('crono'), b = $('bAcao');
+    crono.classList.add('hide'); b.classList.add('hide');
+    if (e.tipo === 'pronta' || e.tipo === 'rodando' || e.tipo === 'aprovacao') {
+      $('rotulo').textContent = 'Demanda ' + e.n + ' de 3';
+      $('titulo').textContent = DEMANDAS[e.d];
+    }
+    if (e.tipo === 'pronta') {
+      $('detalhe').textContent = 'Aperte iniciar quando começar.';
+      b.textContent = 'Iniciar'; b.className = 'btn'; b.classList.remove('hide');
+      b.onclick = function () { var c = {}; c[e.d + '_inicio'] = Date.now(); gravar(c); };
+    } else if (e.tipo === 'rodando') {
+      $('detalhe').textContent = 'Começou às ' + hhmm(s[e.d + '_inicio']) + '.';
+      crono.textContent = dur(Date.now() - s[e.d + '_inicio']); crono.classList.remove('hide');
+      b.textContent = 'Concluí'; b.className = 'btn'; b.classList.remove('hide');
+      b.onclick = function () {
+        if (!confirm('Confirma que terminou "' + DEMANDAS[e.d] + '"?')) return;
+        var c = {}; c[e.d + '_fim'] = Date.now(); gravar(c);
+      };
+    } else if (e.tipo === 'aprovacao') {
+      $('detalhe').textContent = 'Concluída em ' + dur(s[e.d + '_fim'] - s[e.d + '_inicio']) +
+        (e.n === 3 ? '. Aguardando o Michel aprovar para encerrar o dia.' : '. Aguardando o Michel aprovar para liberar a próxima.');
+    } else if (e.tipo === 'liberacao') {
+      $('rotulo').textContent = 'Demanda 3 de 3';
+      $('titulo').textContent = DEMANDAS.d3;
+      $('detalhe').textContent = 'Pedido enviado. Aguardando o Michel liberar.';
+    } else if (e.tipo !== 'alarme') {
+      $('rotulo').textContent = '';
+      $('titulo').textContent = e.titulo;
+      $('detalhe').textContent = e.detalhe;
+    }
+  }
+
+  // ---------- alarme ----------
+  var audio = null, somTimer = null, alarmeAtivo = '', digitado = '';
+  function garantirAudio() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!audio) audio = new AC();
+    if (audio.state === 'suspended') audio.resume();
+    $('ativarSom').classList.toggle('hide', audio.state === 'running');
+  }
+  function bipe() {
+    garantirAudio();
+    if (!audio || audio.state !== 'running') return;
+    // dois toques alternados, como despertador
+    [0, .22, .44, .66].forEach(function (t, i) {
+      var o = audio.createOscillator(), g = audio.createGain(), t0 = audio.currentTime + t;
+      o.type = 'square'; o.frequency.value = i % 2 ? 1046 : 1568;
+      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(.25, t0 + .01);
+      g.gain.setValueAtTime(.25, t0 + .16); g.gain.linearRampToValueAtTime(0, t0 + .18);
+      o.connect(g); g.connect(audio.destination); o.start(t0); o.stop(t0 + .2);
+    });
+    if (navigator.vibrate) navigator.vibrate([400, 150, 400]);
+    $('alarme').classList.toggle('pisca');
+  }
+  function tocarAlarme(qual) {
+    if (alarmeAtivo === qual) return;
+    alarmeAtivo = qual; digitado = ''; pontos();
+    $('aTitulo').textContent = qual === 'manha' ? 'Bom dia, Thalles!' : 'Demanda das 20h';
+    $('aTexto').textContent = qual === 'manha' ? 'Digite a senha para começar o dia.' : 'Digite a senha para pedir a liberação.';
+    $('alarme').classList.remove('hide');
+    // registra a primeira vez que o alarme tocou neste aparelho
+    var campo = qual === 'manha' ? 'm_tocou' : 'n_tocou';
+    if (!s[campo]) { var c = {}; c[campo] = Date.now(); gravar(c); }
+    clearInterval(somTimer);
+    bipe(); somTimer = setInterval(bipe, 1200);
+  }
+  function pararAlarme() {
+    if (!alarmeAtivo) return;
+    alarmeAtivo = ''; clearInterval(somTimer);
+    $('alarme').classList.add('hide');
+    if (navigator.vibrate) navigator.vibrate(0);
+  }
+  function pontos() {
+    var p = $('pontos').children;
+    for (var i = 0; i < 4; i++) p[i].className = i < digitado.length ? 'cheio' : '';
+  }
+  function sha256(txt) {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt)).then(function (b) {
+      return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+    });
+  }
+  function tecla(t) {
+    garantirAudio();
+    if (t === '⌫') digitado = digitado.slice(0, -1);
+    else if (digitado.length < 4) digitado += t;
+    pontos();
+    if (digitado.length < 4) return;
+    var tentativa = digitado;
+    sha256(tentativa).then(function (h) {
+      if (h === PIN_HASH) {
+        var c = {}; c[alarmeAtivo === 'manha' ? 'm_senha' : 'n_senha'] = Date.now();
+        pararAlarme(); gravar(c);
+      } else {
+        digitado = ''; pontos();
+        var a = $('alarme'); a.classList.remove('errou'); void a.offsetWidth; a.classList.add('errou');
+      }
+    });
+  }
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].forEach(function (t) {
+    var b = document.createElement('button');
+    b.textContent = t; if (!t) b.style.visibility = 'hidden';
+    b.onclick = function () { tecla(t); };
+    $('teclado').appendChild(b);
+  });
+  $('ativarSom').onclick = garantirAudio;
+  document.addEventListener('click', garantirAudio, true);
+
+  // ---------- notificações (para o alarme chegar com o celular bloqueado) ----------
+  var reg = null;
+  function prepararAvisos() {
+    var box = $('avisos'); box.innerHTML = '';
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+      box.innerHTML = '<p>Este navegador não recebe notificações. Use o Chrome.</p>'; return;
+    }
+    navigator.serviceWorker.register('firebase-messaging-sw.js').then(function (r) {
+      reg = r;
+      if (Notification.permission === 'granted') salvarToken();
+      else {
+        box.innerHTML = '<button class="btn sec" id="bAvisos">Ativar avisos no celular</button>' +
+          '<p>Sem isso, o alarme só toca com o app aberto na tela.</p>';
+        $('bAvisos').onclick = function () {
+          Notification.requestPermission().then(function (p) { if (p === 'granted') { box.innerHTML = ''; salvarToken(); } });
+        };
+      }
+    });
+    if (!window.matchMedia('(display-mode: standalone)').matches) {
+      box.insertAdjacentHTML('beforeend', '<p>Dica: no menu ⋮ do Chrome, toque em <b>Adicionar à tela inicial</b> para abrir como app.</p>');
+    }
+  }
+  function salvarToken() {
+    firebase.messaging().getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg }).then(function (t) {
+      if (t) db.collection('tokens').doc(t).set({ uid: user.uid, em: Date.now(), aparelho: navigator.userAgent.slice(0, 120) });
+    }).catch(function (e) { console.log('token', e); });
+    // com o app aberto, a notificação chega aqui: toca o alarme na hora
+    firebase.messaging().onMessage(function () { render(); });
+  }
+  // o service worker avisa quando chega notificação com o app em segundo plano
+  if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', function () { render(); });
+
+  setInterval(render, 1000);
+})();
+</script>
+</body>
+</html>

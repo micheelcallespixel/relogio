@@ -83,6 +83,26 @@ button {
 
 #flash { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--accent); color: #000;
   font-size: 7rem; font-weight: 800; letter-spacing: -.03em; }
+
+/* ---- demandas do Thalles (só aparece com o Michel logado) ---- */
+#brand { cursor: pointer; }
+/* faixa de aprovação, na largura do relógio, colada embaixo */
+#aprov { display: none; position: fixed; left: 50%; bottom: 2.4rem; width: 62.7rem; margin-left: -31.35rem; z-index: 5;
+  background: var(--accent); color: #000; border-radius: 1.4rem; padding: 2rem 2.4rem; text-align: left;
+  font-size: 2.6rem; font-weight: 700; line-height: 1.25; text-transform: uppercase; }
+#aprov small { display: block; font-size: 1.9rem; font-weight: 500; margin-top: .6rem; }
+#aprov button { position: absolute; right: 2rem; top: 50%; margin: -3.4rem 0 0 0; width: auto; height: 6.8rem; padding: 0 3rem;
+  background: #000; color: var(--accent); font-size: 3rem; line-height: 6.8rem; border-radius: 1rem; }
+#aprov .txt { padding-right: 24rem; }
+/* menu e login escondidos no CALLESLAB */
+#menu { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 8; background: rgba(0,0,0,.92); }
+#menu .box { width: 44rem; margin: 12rem auto 0; text-align: center; }
+#menu input { display: block; width: 100%; box-sizing: border-box; margin-top: 1.4rem; padding: 1.8rem; border-radius: 1rem;
+  border: .25rem solid #333; background: #000; color: #fff; font: 500 2.4rem Montserrat, Arial, sans-serif; text-transform: none; }
+#menu button, #menu a { display: block; width: 100%; box-sizing: border-box; margin: 1.6rem 0 0 0; height: 7rem; line-height: 7rem;
+  border-radius: 1rem; font-size: 2.6rem; background: var(--card); color: #fff; text-decoration: none; font-weight: 800; }
+#menu .principal { background: var(--accent); color: #000; }
+#menu .msg { margin-top: 1.6rem; font-size: 2rem; color: #aaa; min-height: 2.4rem; text-transform: none; }
 </style>
 </head>
 <body>
@@ -99,6 +119,13 @@ button {
   <div id="flash"></div>
 </div>
 
+<div id="aprov"><div class="txt"></div><button></button></div>
+<div id="menu"><div class="box"></div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script>
 // ES5 puro: também roda no navegador antigo do Kindle.
 (function () {
@@ -265,12 +292,14 @@ button {
   // Cabe o layout (1590 x 1178) inteiro na tela, com folga nas laterais, e centraliza na vertical.
   function fit() {
     var w = window.innerWidth, h = window.innerHeight, m = $('main'), c = $('content');
-    var u = Math.min(w, h * 1590 / 1178) / 100;
+    // com a faixa de aprovação na tela, o relógio encolhe para caber acima dela (~20% da altura)
+    var aprov = $('aprov'), livre = aprov && aprov.style.display === 'block' ? h * 0.8 : h;
+    var u = Math.min(w, livre * 1590 / 1178) / 100;
     document.documentElement.style.fontSize = u + 'px';
     m.style.width = w + 'px';
     m.style.height = h + 'px';
     c.style.paddingTop = '0';
-    c.style.paddingTop = Math.max(0, (h - c.offsetHeight) / 2) + 'px';
+    c.style.paddingTop = Math.max(0, (livre - c.offsetHeight) / 2) + 'px';
     $('flash').style.lineHeight = h + 'px';
   }
   window.onresize = fit;
@@ -280,6 +309,97 @@ button {
   render();
   fit();
   setInterval(tick, 1000);
+
+  // ================= Demandas do Thalles =================
+  // Com o Michel logado, a faixa amarela mostra o que espera aprovação/liberação e toca o aviso.
+  if (!window.firebase || !window.FIREBASE_CONFIG) return;   // sem internet: o pomodoro segue normal
+  firebase.initializeApp(FIREBASE_CONFIG);
+  var fauth = firebase.auth(), fdb = firebase.firestore();
+  var dia = {}, diaKey = '', unsubDia = null, pendenteVisto = '';
+
+  function hojeKey() { return new Date(new Date().getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10); }
+  function duracao(ms) {
+    var m = Math.round(ms / 60000);
+    return m >= 60 ? Math.floor(m / 60) + 'h' + pad(m % 60) : m + ' min';
+  }
+
+  // o que está esperando o Michel agora (na ordem do dia)
+  function pendente() {
+    var i, d;
+    for (i = 1; i <= 2; i++) {
+      d = 'd' + i;
+      if (dia[d + '_fim'] && !dia[d + '_ok']) {
+        return { campo: d + '_ok', botao: 'Aprovar', texto: 'Thalles concluiu: ' + DEMANDAS[d],
+          info: 'em ' + duracao(dia[d + '_fim'] - dia[d + '_inicio']) + (i === 1 ? ' · libera a demanda 2' : ' · a 3 vem com o alarme das 20h') };
+      }
+    }
+    if (dia.n_senha && dia.d2_ok && !dia.d3_lib) {
+      return { campo: 'd3_lib', botao: 'Liberar', texto: 'Thalles pediu: ' + DEMANDAS.d3, info: 'alarme desligado às ' + hora(dia.n_senha) };
+    }
+    if (dia.d3_fim && !dia.d3_ok) {
+      return { campo: 'd3_ok', botao: 'Aprovar', texto: 'Thalles concluiu: ' + DEMANDAS.d3,
+        info: 'em ' + duracao(dia.d3_fim - dia.d3_inicio) + ' · encerra o dia' };
+    }
+    return null;
+  }
+  function hora(ms) { var d = new Date(ms - 3 * 3600 * 1000); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()); }
+
+  function renderAprov() {
+    var p = fauth.currentUser && fauth.currentUser.uid === UID_MICHEL ? pendente() : null, el = $('aprov');
+    if (!p) { if (el.style.display === 'block') { el.style.display = 'none'; fit(); } pendenteVisto = ''; return; }
+    el.querySelector('.txt').innerHTML = p.texto + '<small>' + p.info + '</small>';
+    var b = el.querySelector('button');
+    b.textContent = p.botao;
+    b.onclick = function () {
+      b.disabled = true;
+      var c = {}; c[p.campo] = Date.now();
+      fdb.collection('dias').doc(diaKey).set(c, { merge: true }).then(function () { b.disabled = false; },
+        function () { b.disabled = false; alert('Não consegui gravar. Confira a internet.'); });
+    };
+    if (el.style.display !== 'block') { el.style.display = 'block'; fit(); }
+    // aviso novo: som (se já liberado por um toque) e a tela amarela por alguns segundos
+    if (pendenteVisto !== p.campo) {
+      pendenteVisto = p.campo;
+      chime(true);
+      flash(p.botao === 'Liberar' ? 'LIBERAR DEMANDA 3' : 'APROVAR DEMANDA');
+    }
+  }
+
+  function ouvirDia() {
+    if (diaKey === hojeKey() && unsubDia) return;
+    if (unsubDia) unsubDia();
+    diaKey = hojeKey(); dia = {};
+    unsubDia = fdb.collection('dias').doc(diaKey).onSnapshot(function (doc) { dia = doc.data() || {}; renderAprov(); });
+  }
+
+  fauth.onAuthStateChanged(function (u) {
+    if (u && u.uid === UID_MICHEL) ouvirDia();
+    else { if (unsubDia) unsubDia(); unsubDia = null; dia = {}; renderAprov(); }
+  });
+  setInterval(function () { if (unsubDia) ouvirDia(); }, 60000);   // vira o dia à meia-noite
+  document.addEventListener('click', unlockAudio, true);            // qualquer toque libera o som do aviso
+
+  // menu escondido: toque no CALLESLAB
+  function abrirMenu() {
+    var box = $('menu').querySelector('.box'), u = fauth.currentUser;
+    if (u) {
+      box.innerHTML = '<a class="principal" href="thalles/historico.html">Histórico do Thalles</a>' +
+        '<button id="mSair">Sair</button><button id="mFechar">Fechar</button>';
+      $('mSair').onclick = function () { fauth.signOut(); fecharMenu(); };
+    } else {
+      box.innerHTML = '<input id="mEmail" type="email" placeholder="E-mail" autocomplete="username">' +
+        '<input id="mSenha" type="password" placeholder="Senha" autocomplete="current-password">' +
+        '<button class="principal" id="mEntrar">Entrar</button><button id="mFechar">Fechar</button><div class="msg" id="mMsg"></div>';
+      $('mEntrar').onclick = function () {
+        fauth.signInWithEmailAndPassword($('mEmail').value.trim(), $('mSenha').value)
+          .then(fecharMenu, function () { $('mMsg').textContent = 'E-mail ou senha errados.'; });
+      };
+    }
+    $('mFechar').onclick = fecharMenu;
+    $('menu').style.display = 'block';
+  }
+  function fecharMenu() { $('menu').style.display = 'none'; }
+  $('brand').onclick = abrirMenu;
 })();
 </script>
 </body>
