@@ -2,7 +2,7 @@ name: Alarme do Thalles
 
 on:
   schedule:
-    # horários em UTC; 20 min antes para compensar atrasos do agendador do GitHub
+    # horários em UTC; acorda 20 min antes (atrasos do GitHub) e o script espera dar 8h/20h
     - cron: '40 10 * * 1-5'   # 07:40 em Brasília, seg a sex
     - cron: '40 22 * * 1-5'   # 19:40 em Brasília, seg a sex
   workflow_dispatch:           # botão "Run workflow" para testar na hora
@@ -10,16 +10,21 @@ on:
       qual:
         description: 'manha ou noite'
         default: 'manha'
+      zerar:
+        description: 'zerar o dia (apaga o registro de hoje para testar de novo)'
+        type: boolean
+        default: false
 
 jobs:
   alarme:
     runs-on: ubuntu-latest
+    timeout-minutes: 70
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - run: npm install --no-save firebase-admin@12
-      - run: node scripts/alarme-thalles.js ${{ github.event.inputs.qual }}
+      - run: node scripts/alarme-thalles.js ${{ github.event.inputs.qual }} ${{ github.event.inputs.zerar == 'true' && 'zerar' || '' }}
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
