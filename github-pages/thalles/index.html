@@ -131,6 +131,7 @@ body { font-family: Montserrat, Arial, sans-serif; text-align: center; -webkit-t
   firebase.initializeApp(FIREBASE_CONFIG);
   var auth = firebase.auth(), db = firebase.firestore();
   var s = {}, key = '', unsub = null, user = null;
+  var carregado = false;   // só decide a tela depois que os dados do dia chegam (senão o alarme "pisca")
 
   // ---------- login ----------
   $('bEntrar').onclick = function () {
@@ -149,8 +150,8 @@ body { font-family: Montserrat, Arial, sans-serif; text-align: center; -webkit-t
   function ouvirDia() {
     if (key === diaKey() && unsub) return;
     if (unsub) unsub();
-    key = diaKey(); s = {};
-    unsub = db.collection('dias').doc(key).onSnapshot(function (doc) { s = doc.data() || {}; render(); });
+    key = diaKey(); s = {}; carregado = false;
+    unsub = db.collection('dias').doc(key).onSnapshot(function (doc) { s = doc.data() || {}; carregado = true; render(); });
   }
   function gravar(campos) { return db.collection('dias').doc(key).set(campos, { merge: true }); }
 
@@ -180,6 +181,7 @@ body { font-family: Montserrat, Arial, sans-serif; text-align: center; -webkit-t
   function render() {
     if (!user) return;
     if (key !== diaKey()) { ouvirDia(); return; }
+    if (!carregado) { $('rotulo').textContent = ''; $('titulo').textContent = 'Carregando…'; $('detalhe').textContent = ''; return; }
     var d = brt(), e = etapa();
     $('hoje').textContent = DIAS[d.getUTCDay()] + ' | ' + d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()] + ' | ' + hhmm();
 
