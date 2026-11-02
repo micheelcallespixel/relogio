@@ -23,10 +23,14 @@ firebase.messaging().onBackgroundMessage(function (msg) {
   });
 });
 
+// Abre sempre uma janela nova: com o app instalado, o Android abre no app (e não numa aba
+// antiga do Chrome que tenha ficado aberta). Só se não conseguir abrir, foca uma janela existente.
 self.addEventListener('notificationclick', function (e) {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cs) {
-    for (var i = 0; i < cs.length; i++) if ('focus' in cs[i]) return cs[i].focus();
-    return self.clients.openWindow('./');
+  e.waitUntil(self.clients.openWindow('./').then(function (w) {
+    if (w) return w;
+    return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cs) {
+      if (cs.length && 'focus' in cs[0]) return cs[0].focus();
+    });
   }));
 });
