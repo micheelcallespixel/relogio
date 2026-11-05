@@ -103,6 +103,23 @@ button {
   border-radius: 1rem; font-size: 2.6rem; background: var(--card); color: #fff; text-decoration: none; font-weight: 800; }
 #menu .principal { background: var(--accent); color: #000; }
 #menu .msg { margin-top: 1.6rem; font-size: 2rem; color: #aaa; min-height: 2.4rem; text-transform: none; }
+
+/* ---- tarefas do Michel (a Gabi cria; só aparece com o Michel logado e com tarefa pendente) ---- */
+#tarefas { display: none; width: 62.7rem; margin: 2.6rem auto 0 auto; text-align: left; }
+#tarefas h3 { margin: 0 0 1.2rem; font-size: 1.9rem; font-weight: 500; letter-spacing: .4em; color: var(--accent); }
+#tarefas ul { list-style: none; margin: 0; padding: 0; }
+#tarefas li { position: relative; margin-top: .9rem; padding: 1.5rem 9rem 1.5rem 5.6rem; background: var(--card); border-radius: 1.1rem;
+  font-size: 2.5rem; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; cursor: pointer; white-space: normal; }
+/* bolinha para marcar como feita */
+#tarefas li:before { content: ""; position: absolute; left: 1.8rem; top: 50%; width: 2.2rem; height: 2.2rem; margin-top: -1.35rem;
+  border: .25rem solid #555; border-radius: 50%; }
+#tarefas li small { position: absolute; right: 1.8rem; top: 50%; margin-top: -1.3rem; font-size: 2.1rem; line-height: 2.6rem; color: var(--accent); }
+#tarefas li.atrasada small { color: #ff6b6b; }
+/* primeiro toque: pede confirmação; segundo toque: conclui */
+#tarefas li.confirmar { background: var(--accent); color: #000; }
+#tarefas li.confirmar:before { border-color: #000; }
+#tarefas li.confirmar small { color: #000; }
+#tarefas .mais { margin-top: 1rem; font-size: 1.9rem; color: #888; }
 </style>
 </head>
 <body>
@@ -115,6 +132,7 @@ button {
     <div id="bottom" class="row"><span id="timer"></span><button id="bStart">INICIAR</button></div>
     <div id="progress"><div id="bar"></div></div>
     <div id="stats"></div>
+    <div id="tarefas"><h3>TAREFAS</h3><ul></ul><div class="mais"></div></div>
   </div>
   <div id="flash"></div>
 </div>
@@ -299,6 +317,12 @@ button {
     m.style.width = w + 'px';
     m.style.height = h + 'px';
     c.style.paddingTop = '0';
+    // com a lista de tarefas aparecendo, encolhe tudo na proporção para caber na tela
+    var tl = $('tarefas');
+    if (tl && tl.style.display === 'block') {
+      var alturaTudo = c.offsetHeight + 3 * u;   // um respiro embaixo
+      if (alturaTudo > livre) { u = u * livre / alturaTudo; document.documentElement.style.fontSize = u + 'px'; }
+    }
     c.style.paddingTop = Math.max(0, (livre - c.offsetHeight) / 2) + 'px';
     $('flash').style.lineHeight = h + 'px';
   }
@@ -372,9 +396,70 @@ button {
     unsubDia = fdb.collection('dias').doc(diaKey).onSnapshot(function (doc) { dia = doc.data() || {}; renderAprov(); });
   }
 
+  // ================= Tarefas do Michel =================
+  // A Gabi (assistente por voz no computador) grava em tarefas/{id}; aqui aparecem as pendentes.
+  // Toque numa tarefa: ela fica amarela pedindo confirmação; toque de novo em até 4 s para concluir.
+  var MAX_TAREFAS = 6, unsubTarefas = null, tarefas = [], confirmando = null, timerConfirma = null;
+
+  function hojeISO() { return hojeKey(); }
+  function prazoCurto(p) { var d = p.split('-'); return d[2] + '/' + d[1]; }
+
+  function renderTarefas() {
+    var box = $('tarefas'), ul = box.querySelector('ul'), mais = box.querySelector('.mais');
+    var mostrar = fauth.currentUser && fauth.currentUser.uid === UID_MICHEL && tarefas.length > 0;
+    var estava = box.style.display === 'block';
+    if (!mostrar) { box.style.display = 'none'; if (estava) fit(); return; }
+    ul.innerHTML = '';
+    tarefas.slice(0, MAX_TAREFAS).forEach(function (t) {
+      var li = document.createElement('li');
+      li.textContent = confirmando === t.id ? 'Tocar de novo para concluir' : t.texto;
+      if (confirmando === t.id) li.className = 'confirmar';
+      if (t.prazo) {
+        var s = document.createElement('small');
+        s.textContent = t.prazo < hojeISO() ? 'atrasada' : t.prazo === hojeISO() ? 'hoje' : prazoCurto(t.prazo);
+        if (t.prazo < hojeISO()) li.className += ' atrasada';
+        li.appendChild(s);
+      }
+      li.onclick = function () { tocarTarefa(t); };
+      ul.appendChild(li);
+    });
+    var resto = tarefas.length - MAX_TAREFAS;
+    mais.textContent = resto > 0 ? '+ ' + resto + (resto === 1 ? ' tarefa' : ' tarefas') : '';
+    box.style.display = 'block';
+    fit();
+  }
+
+  function tocarTarefa(t) {
+    clearTimeout(timerConfirma);
+    if (confirmando !== t.id) {
+      confirmando = t.id; renderTarefas();
+      timerConfirma = setTimeout(function () { confirmando = null; renderTarefas(); }, 4000);
+      return;
+    }
+    confirmando = null;
+    fdb.collection('tarefas').doc(t.id).update({ feita: true, concluida: firebase.firestore.Timestamp.now() })
+      .catch(function () { alert('Não consegui concluir a tarefa. Confira a internet.'); renderTarefas(); });
+  }
+
+  function ouvirTarefas() {
+    if (unsubTarefas) return;
+    unsubTarefas = fdb.collection('tarefas').where('feita', '==', false).onSnapshot(function (snap) {
+      tarefas = snap.docs.map(function (d) { var x = d.data(); x.id = d.id; return x; });
+      tarefas.sort(function (a, b) {
+        return (a.prazo || '9999').localeCompare(b.prazo || '9999') ||
+          ((a.criada && a.criada.toMillis ? a.criada.toMillis() : 0) - (b.criada && b.criada.toMillis ? b.criada.toMillis() : 0));
+      });
+      renderTarefas();
+    }, function () { tarefas = []; renderTarefas(); });   // sem permissão (regras não publicadas): some sem quebrar o relógio
+  }
+  setInterval(renderTarefas, 10 * 60000);   // atualiza "hoje"/"atrasada" na virada do dia
+
   fauth.onAuthStateChanged(function (u) {
-    if (u && u.uid === UID_MICHEL) ouvirDia();
-    else { if (unsubDia) unsubDia(); unsubDia = null; dia = {}; renderAprov(); }
+    if (u && u.uid === UID_MICHEL) { ouvirDia(); ouvirTarefas(); }
+    else {
+      if (unsubDia) unsubDia(); unsubDia = null; dia = {}; renderAprov();
+      if (unsubTarefas) unsubTarefas(); unsubTarefas = null; tarefas = []; renderTarefas();
+    }
   });
   setInterval(function () { if (unsubDia) ouvirDia(); }, 60000);   // vira o dia à meia-noite
   document.addEventListener('click', unlockAudio, true);            // qualquer toque libera o som do aviso
