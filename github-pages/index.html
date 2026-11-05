@@ -104,22 +104,44 @@ button {
 #menu .principal { background: var(--accent); color: #000; }
 #menu .msg { margin-top: 1.6rem; font-size: 2rem; color: #aaa; min-height: 2.4rem; text-transform: none; }
 
-/* ---- tarefas do Michel (a Gabi cria; só aparece com o Michel logado e com tarefa pendente) ---- */
-#tarefas { display: none; width: 62.7rem; margin: 2.6rem auto 0 auto; text-align: left; }
-#tarefas h3 { margin: 0 0 1.2rem; font-size: 1.9rem; font-weight: 500; letter-spacing: .4em; color: var(--accent); }
-#tarefas ul { list-style: none; margin: 0; padding: 0; }
-#tarefas li { position: relative; margin-top: .9rem; padding: 1.5rem 9rem 1.5rem 5.6rem; background: var(--card); border-radius: 1.1rem;
-  font-size: 2.5rem; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; cursor: pointer; white-space: normal; }
+/* ---- coluna da direita: agenda do dia e tarefas (só com o Michel logado) ----
+   O tamanho da letra da coluna é calculado no fit(); tudo aqui dentro é em "em". */
+#flash { z-index: 4; }
+#lado { display: none; position: fixed; z-index: 1; top: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 1.6em 1.6em 3em 0;
+  text-align: left; white-space: normal;
+  /* rola com o dedo para ver tudo */
+  overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;
+  scrollbar-width: none; }
+#lado::-webkit-scrollbar { display: none; }
+/* degradê embaixo avisando que tem mais para rolar */
+#lado:after { content: ""; position: sticky; display: block; bottom: -3em; height: 3em; margin-top: -3em;
+  background: linear-gradient(rgba(0,0,0,0), #000); pointer-events: none; }
+#lado h3 { margin: 0 0 .7em; font-size: .75em; font-weight: 500; letter-spacing: .4em; color: var(--accent); }
+#lado ul { list-style: none; margin: 0; padding: 0; }
+#lado .vazio { font-size: .8em; color: #777; padding: .4em 0 0; }
+#lado .mais { margin-top: .5em; font-size: .72em; color: #888; }
+#lado .bloco + .bloco { margin-top: 1.4em; }
+
+#agenda li { position: relative; margin-top: .45em; padding: .55em .7em .55em 4.6em; background: var(--card); border-radius: .5em;
+  font-size: 1em; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; border-left: .22em solid transparent; }
+#agenda li b { position: absolute; left: .8em; top: .55em; font-weight: 700; color: var(--accent); }
+#agenda li span { display: block; font-size: .72em; color: #999; margin-top: .2em; }
+#agenda li.passou { opacity: .38; }
+#agenda li.agora { border-left-color: var(--accent); background: #262212; }
+#agenda li.proximo b:after { content: " ›"; }
+#agenda .atualizada { margin-top: .6em; font-size: .6em; color: #555; letter-spacing: .1em; }
+
+#tarefas li { position: relative; margin-top: .45em; padding: .55em 5.4em .55em 2.3em; background: var(--card); border-radius: .5em;
+  font-size: 1em; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; cursor: pointer; touch-action: manipulation; }
 /* bolinha para marcar como feita */
-#tarefas li:before { content: ""; position: absolute; left: 1.8rem; top: 50%; width: 2.2rem; height: 2.2rem; margin-top: -1.35rem;
-  border: .25rem solid #555; border-radius: 50%; }
-#tarefas li small { position: absolute; right: 1.8rem; top: 50%; margin-top: -1.3rem; font-size: 2.1rem; line-height: 2.6rem; color: var(--accent); }
+#tarefas li:before { content: ""; position: absolute; left: .7em; top: 50%; width: .85em; height: .85em; margin-top: -.52em;
+  border: .1em solid #555; border-radius: 50%; }
+#tarefas li small { position: absolute; right: .8em; top: 50%; margin-top: -.5em; font-size: .7em; line-height: 1em; color: var(--accent); }
 #tarefas li.atrasada small { color: #ff6b6b; }
 /* primeiro toque: pede confirmação; segundo toque: conclui */
 #tarefas li.confirmar { background: var(--accent); color: #000; }
 #tarefas li.confirmar:before { border-color: #000; }
 #tarefas li.confirmar small { color: #000; }
-#tarefas .mais { margin-top: 1rem; font-size: 1.9rem; color: #888; }
 </style>
 </head>
 <body>
@@ -132,9 +154,13 @@ button {
     <div id="bottom" class="row"><span id="timer"></span><button id="bStart">INICIAR</button></div>
     <div id="progress"><div id="bar"></div></div>
     <div id="stats"></div>
-    <div id="tarefas"><h3>TAREFAS</h3><ul></ul><div class="mais"></div></div>
   </div>
   <div id="flash"></div>
+</div>
+
+<div id="lado">
+  <div class="bloco" id="agenda"><h3>AGENDA DE HOJE</h3><ul></ul><div class="vazio"></div><div class="atualizada"></div></div>
+  <div class="bloco" id="tarefas"><h3>TAREFAS</h3><ul></ul><div class="vazio"></div><div class="mais"></div></div>
 </div>
 
 <div id="aprov"><div class="txt"></div><button></button></div>
@@ -312,18 +338,23 @@ button {
     var w = window.innerWidth, h = window.innerHeight, m = $('main'), c = $('content');
     // com a faixa de aprovação na tela, o relógio encolhe para caber acima dela (~20% da altura)
     var aprov = $('aprov'), livre = aprov && aprov.style.display === 'block' ? h * 0.8 : h;
-    var u = Math.min(w, livre * 1590 / 1178) / 100;
+    // com o Michel logado, a coluna da direita (agenda + tarefas) fica com ~36% da largura e o relógio com o resto
+    // com o Michel logado: relógio menor no cantinho de cima à esquerda (~42% da largura)
+    // e a coluna da direita (agenda + tarefas, rolando com o dedo) com o resto
+    var lado = $('lado'), comLado = lado && lado.style.display === 'block';
+    var areaW = comLado ? Math.round(w * 0.42) : w;
+    var u = Math.min(areaW, livre * 1590 / 1178) / 100;
     document.documentElement.style.fontSize = u + 'px';
     m.style.width = w + 'px';
     m.style.height = h + 'px';
-    c.style.paddingTop = '0';
-    // com a lista de tarefas aparecendo, encolhe tudo na proporção para caber na tela
-    var tl = $('tarefas');
-    if (tl && tl.style.display === 'block') {
-      var alturaTudo = c.offsetHeight + 3 * u;   // um respiro embaixo
-      if (alturaTudo > livre) { u = u * livre / alturaTudo; document.documentElement.style.fontSize = u + 'px'; }
+    c.style.marginLeft = c.style.marginRight = comLado ? Math.max(0, (areaW - 100 * u) / 2) + 'px' : 'auto';
+    if (comLado) {
+      lado.style.width = (w - areaW) + 'px';
+      lado.style.fontSize = Math.min((w - areaW) / 26, h / 32) + 'px';
     }
-    c.style.paddingTop = Math.max(0, (livre - c.offsetHeight) / 2) + 'px';
+    if (aprov) aprov.style.left = (comLado ? areaW / 2 : w / 2) + 'px';
+    c.style.paddingTop = '0';
+    c.style.paddingTop = comLado ? Math.round(h * 0.05) + 'px' : Math.max(0, (livre - c.offsetHeight) / 2) + 'px';
     $('flash').style.lineHeight = h + 'px';
   }
   window.onresize = fit;
@@ -399,16 +430,23 @@ button {
   // ================= Tarefas do Michel =================
   // A Gabi (assistente por voz no computador) grava em tarefas/{id}; aqui aparecem as pendentes.
   // Toque numa tarefa: ela fica amarela pedindo confirmação; toque de novo em até 4 s para concluir.
-  var MAX_TAREFAS = 6, unsubTarefas = null, tarefas = [], confirmando = null, timerConfirma = null;
+  var MAX_TAREFAS = 40, unsubTarefas = null, tarefas = [], confirmando = null, timerConfirma = null;
 
   function hojeISO() { return hojeKey(); }
   function prazoCurto(p) { var d = p.split('-'); return d[2] + '/' + d[1]; }
+  function ehMichel() { return fauth.currentUser && fauth.currentUser.uid === UID_MICHEL; }
+
+  // a coluna da direita aparece sempre que o Michel está logado
+  function mostrarLado() {
+    var lado = $('lado'), quer = ehMichel(), estava = lado.style.display === 'block';
+    if (quer !== estava) { lado.style.display = quer ? 'block' : 'none'; fit(); }
+  }
 
   function renderTarefas() {
     var box = $('tarefas'), ul = box.querySelector('ul'), mais = box.querySelector('.mais');
-    var mostrar = fauth.currentUser && fauth.currentUser.uid === UID_MICHEL && tarefas.length > 0;
-    var estava = box.style.display === 'block';
-    if (!mostrar) { box.style.display = 'none'; if (estava) fit(); return; }
+    mostrarLado();
+    if (!ehMichel()) return;
+    box.querySelector('.vazio').textContent = tarefas.length ? '' : 'Nenhuma tarefa pendente';
     ul.innerHTML = '';
     tarefas.slice(0, MAX_TAREFAS).forEach(function (t) {
       var li = document.createElement('li');
@@ -425,9 +463,54 @@ button {
     });
     var resto = tarefas.length - MAX_TAREFAS;
     mais.textContent = resto > 0 ? '+ ' + resto + (resto === 1 ? ' tarefa' : ' tarefas') : '';
-    box.style.display = 'block';
-    fit();
   }
+
+  // ================= Agenda de hoje =================
+  // A Gabi (no computador) copia a agenda do Google para agenda/AAAA-MM-DD a cada 5 minutos.
+  var unsubAgenda = null, agendaKey = '', agenda = null, MAX_EVENTOS = 40;
+
+  function horaBR(iso) { var d = new Date(new Date(iso).getTime() - 3 * 3600 * 1000); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()); }
+
+  function renderAgenda() {
+    mostrarLado();
+    if (!ehMichel()) return;
+    var box = $('agenda'), ul = box.querySelector('ul'), agora = Date.now();
+    var eventos = (agenda && agenda.eventos) || [];
+    ul.innerHTML = '';
+    box.querySelector('.vazio').textContent = !agenda ? 'Abra a Gabi no computador para trazer a agenda' : eventos.length ? '' : 'Nada marcado hoje';
+    var proximoMarcado = false, mostrados = 0;
+    // os que já passaram somem se a lista estiver cheia, para caber o que vem pela frente
+    var passados = eventos.filter(function (e) { return !e.diaTodo && e.fim && new Date(e.fim).getTime() < agora; }).length;
+    var pular = Math.max(0, Math.min(passados, eventos.length - MAX_EVENTOS));
+    eventos.slice(pular).forEach(function (e) {
+      if (mostrados >= MAX_EVENTOS) return;
+      mostrados++;
+      var li = document.createElement('li'), b = document.createElement('b'), t = document.createTextNode(e.titulo);
+      b.textContent = e.diaTodo ? 'DIA' : horaBR(e.inicio);
+      li.appendChild(b); li.appendChild(t);
+      if (e.local) { var s = document.createElement('span'); s.textContent = e.local; li.appendChild(s); }
+      if (!e.diaTodo) {
+        var ini = new Date(e.inicio).getTime(), fim = new Date(e.fim).getTime();
+        if (fim < agora) li.className = 'passou';
+        else if (ini <= agora) li.className = 'agora';
+        else if (!proximoMarcado) { li.className = 'proximo'; proximoMarcado = true; }
+      }
+      ul.appendChild(li);
+    });
+    box.querySelector('.atualizada').textContent = agenda && agenda.atualizada && agenda.atualizada.toMillis
+      ? 'ATUALIZADA ÀS ' + horaBR(agenda.atualizada.toMillis()) : '';
+  }
+
+  function ouvirAgenda() {
+    if (agendaKey === hojeKey() && unsubAgenda) return;
+    if (unsubAgenda) unsubAgenda();
+    agendaKey = hojeKey(); agenda = null;
+    unsubAgenda = fdb.collection('agenda').doc(agendaKey).onSnapshot(function (doc) {
+      agenda = doc.exists ? doc.data() : null; renderAgenda();
+    }, function () { agenda = null; renderAgenda(); });
+    renderAgenda();
+  }
+  setInterval(function () { if (unsubAgenda) { ouvirAgenda(); renderAgenda(); } }, 60000);   // passa o "agora" e vira o dia
 
   function tocarTarefa(t) {
     clearTimeout(timerConfirma);
@@ -455,10 +538,11 @@ button {
   setInterval(renderTarefas, 10 * 60000);   // atualiza "hoje"/"atrasada" na virada do dia
 
   fauth.onAuthStateChanged(function (u) {
-    if (u && u.uid === UID_MICHEL) { ouvirDia(); ouvirTarefas(); }
+    if (u && u.uid === UID_MICHEL) { ouvirDia(); ouvirTarefas(); ouvirAgenda(); }
     else {
       if (unsubDia) unsubDia(); unsubDia = null; dia = {}; renderAprov();
       if (unsubTarefas) unsubTarefas(); unsubTarefas = null; tarefas = []; renderTarefas();
+      if (unsubAgenda) unsubAgenda(); unsubAgenda = null; agenda = null; agendaKey = '';
     }
   });
   setInterval(function () { if (unsubDia) ouvirDia(); }, 60000);   // vira o dia à meia-noite
