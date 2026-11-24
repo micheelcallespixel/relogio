@@ -379,6 +379,25 @@ button {
   fit();
   setInterval(tick, 1000);
 
+  // O ícone da Tela de Início do iPad às vezes fica preso numa versão antiga da página.
+  // Ao abrir (e ao voltar para o app) confere a versão publicada e, se mudou e o timer não está rodando, recarrega.
+  // Ao publicar uma mudança, troque VERSAO.
+  var VERSAO = '2026-11-24a';
+  function conferirVersao() {
+    var x = new XMLHttpRequest();
+    x.open('GET', location.pathname + '?v=' + new Date().getTime(), true);
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4 || x.status !== 200) return;
+      var m = /var VERSAO = '([^']+)'/.exec(x.responseText);
+      if (m && m[1] !== VERSAO && !running) location.reload();
+    };
+    x.send();
+  }
+  setTimeout(conferirVersao, 5000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') conferirVersao();
+  });
+
   // ================= Demandas do Thalles =================
   // Com o Michel logado, a faixa amarela mostra o que espera aprovação/liberação e toca o aviso.
   if (!window.firebase || !window.FIREBASE_CONFIG) return;   // sem internet: o pomodoro segue normal
