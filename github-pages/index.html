@@ -104,7 +104,7 @@ button {
 #menu .principal { background: var(--accent); color: #000; }
 #menu .msg { margin-top: 1.6rem; font-size: 2rem; color: #aaa; min-height: 2.4rem; text-transform: none; }
 
-/* ---- coluna da direita: agenda do dia e tarefas (só com o Michel logado) ----
+/* ---- com o Michel logado: tarefas na coluna da direita e agenda da semana embaixo do relógio ----
    O tamanho da letra da coluna é calculado no fit(); tudo aqui dentro é em "em". */
 #flash { z-index: 4; }
 #lado { display: none; position: fixed; z-index: 1; top: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 1.6em 1.6em 3em 0;
@@ -112,15 +112,23 @@ button {
   /* rola com o dedo para ver tudo */
   overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;
   scrollbar-width: none; }
-#lado::-webkit-scrollbar { display: none; }
+/* agenda da semana: embaixo do relógio, na coluna da esquerda (o topo é calculado no fit()) */
+#semana { display: none; position: fixed; z-index: 1; left: 0; bottom: 0; box-sizing: border-box; padding: 0 1.6em 3em;
+  text-align: left; white-space: normal;
+  overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;
+  scrollbar-width: none; }
+#lado::-webkit-scrollbar, #semana::-webkit-scrollbar { display: none; }
 /* degradê embaixo avisando que tem mais para rolar */
-#lado:after { content: ""; position: sticky; display: block; bottom: -3em; height: 3em; margin-top: -3em;
+#lado:after, #semana:after { content: ""; position: sticky; display: block; bottom: -3em; height: 3em; margin-top: -3em;
   background: linear-gradient(rgba(0,0,0,0), #000); pointer-events: none; }
-#lado h3 { margin: 0 0 .7em; font-size: .75em; font-weight: 500; letter-spacing: .4em; color: var(--accent); }
-#lado ul { list-style: none; margin: 0; padding: 0; }
-#lado .vazio { font-size: .8em; color: #777; padding: .4em 0 0; }
+#lado h3, #semana h3 { margin: 0 0 .7em; font-size: .75em; font-weight: 500; letter-spacing: .4em; color: var(--accent); }
+#lado ul, #semana ul { list-style: none; margin: 0; padding: 0; }
+#lado .vazio, #semana .vazio { font-size: .8em; color: #777; padding: .4em 0 0; }
 #lado .mais { margin-top: .5em; font-size: .72em; color: #888; }
-#lado .bloco + .bloco { margin-top: 1.4em; }
+/* um título por dia da semana */
+#agenda h4 { margin: 1.1em 0 .1em; font-size: .7em; font-weight: 700; letter-spacing: .2em; color: #aaa; }
+#agenda h4:first-of-type { margin-top: 0; }
+#agenda h4.hoje { color: var(--accent); }
 
 #agenda li { position: relative; margin-top: .45em; padding: .55em .7em .55em 4.6em; background: var(--card); border-radius: .5em;
   font-size: 1em; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; border-left: .22em solid transparent; }
@@ -158,8 +166,10 @@ button {
   <div id="flash"></div>
 </div>
 
+<div id="semana">
+  <div class="bloco" id="agenda"><h3>AGENDA DA SEMANA</h3><div class="dias"></div><div class="vazio"></div><div class="atualizada"></div></div>
+</div>
 <div id="lado">
-  <div class="bloco" id="agenda"><h3>AGENDA DE HOJE</h3><ul></ul><div class="vazio"></div><div class="atualizada"></div></div>
   <div class="bloco" id="tarefas"><h3>TAREFAS</h3><ul></ul><div class="vazio"></div><div class="mais"></div></div>
 </div>
 
@@ -338,9 +348,8 @@ button {
     var w = window.innerWidth, h = window.innerHeight, m = $('main'), c = $('content');
     // com a faixa de aprovação na tela, o relógio encolhe para caber acima dela (~20% da altura)
     var aprov = $('aprov'), livre = aprov && aprov.style.display === 'block' ? h * 0.8 : h;
-    // com o Michel logado, a coluna da direita (agenda + tarefas) fica com ~36% da largura e o relógio com o resto
-    // com o Michel logado: relógio menor no cantinho de cima à esquerda (~42% da largura)
-    // e a coluna da direita (agenda + tarefas, rolando com o dedo) com o resto
+    // com o Michel logado: relógio menor no cantinho de cima à esquerda (~42% da largura), agenda da semana
+    // embaixo dele, e a coluna da direita (tarefas, rolando com o dedo) com o resto
     var lado = $('lado'), comLado = lado && lado.style.display === 'block';
     var areaW = comLado ? Math.round(w * 0.42) : w;
     var u = Math.min(areaW, livre * 1590 / 1178) / 100;
@@ -348,13 +357,18 @@ button {
     m.style.width = w + 'px';
     m.style.height = h + 'px';
     c.style.marginLeft = c.style.marginRight = comLado ? Math.max(0, (areaW - 100 * u) / 2) + 'px' : 'auto';
+    var semana = $('semana'), f = Math.min((w - areaW) / 26, h / 32);
     if (comLado) {
       lado.style.width = (w - areaW) + 'px';
-      lado.style.fontSize = Math.min((w - areaW) / 26, h / 32) + 'px';
+      lado.style.fontSize = f + 'px';
+      semana.style.width = areaW + 'px';
+      semana.style.fontSize = f + 'px';
     }
     if (aprov) aprov.style.left = (comLado ? areaW / 2 : w / 2) + 'px';
     c.style.paddingTop = '0';
     c.style.paddingTop = comLado ? Math.round(h * 0.05) + 'px' : Math.max(0, (livre - c.offsetHeight) / 2) + 'px';
+    // a agenda da semana começa logo abaixo do relógio
+    if (comLado) semana.style.top = Math.round(c.offsetTop + c.offsetHeight + f * 1.4) + 'px';
     $('flash').style.lineHeight = h + 'px';
   }
   window.onresize = fit;
@@ -436,10 +450,10 @@ button {
   function prazoCurto(p) { var d = p.split('-'); return d[2] + '/' + d[1]; }
   function ehMichel() { return fauth.currentUser && fauth.currentUser.uid === UID_MICHEL; }
 
-  // a coluna da direita aparece sempre que o Michel está logado
+  // a coluna da direita (tarefas) e a agenda da semana aparecem sempre que o Michel está logado
   function mostrarLado() {
     var lado = $('lado'), quer = ehMichel(), estava = lado.style.display === 'block';
-    if (quer !== estava) { lado.style.display = quer ? 'block' : 'none'; fit(); }
+    if (quer !== estava) { lado.style.display = $('semana').style.display = quer ? 'block' : 'none'; fit(); }
   }
 
   function renderTarefas() {
@@ -465,49 +479,68 @@ button {
     mais.textContent = resto > 0 ? '+ ' + resto + (resto === 1 ? ' tarefa' : ' tarefas') : '';
   }
 
-  // ================= Agenda de hoje =================
-  // A Gabi (no computador) copia a agenda do Google para agenda/AAAA-MM-DD a cada 5 minutos.
-  var unsubAgenda = null, agendaKey = '', agenda = null, MAX_EVENTOS = 40;
+  // ================= Agenda da semana =================
+  // A Gabi (no computador) copia a agenda do Google de hoje e dos 6 dias seguintes para agenda/AAAA-MM-DD
+  // a cada 5 minutos. Aqui aparecem os 7 dias, agrupados, pulando os dias sem compromisso.
+  var DIAS_SEMANA = 7, unsubAgenda = null, agendaKey = '', agendas = {};
 
   function horaBR(iso) { var d = new Date(new Date(iso).getTime() - 3 * 3600 * 1000); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()); }
+  // AAAA-MM-DD de hoje + i dias (Brasília)
+  function diaKeyMais(i) { return new Date(new Date().getTime() - 3 * 3600 * 1000 + i * 86400000).toISOString().slice(0, 10); }
+  function tituloDoDia(key, i) {
+    var p = key.split('-'), d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    var nome = DIAS[d.getUTCDay()].replace('-feira', '');
+    return (i === 0 ? 'HOJE · ' : i === 1 ? 'AMANHÃ · ' : '') + nome.toUpperCase() + ' ' + (+p[2]);
+  }
 
   function renderAgenda() {
     mostrarLado();
     if (!ehMichel()) return;
-    var box = $('agenda'), ul = box.querySelector('ul'), agora = Date.now();
-    var eventos = (agenda && agenda.eventos) || [];
-    ul.innerHTML = '';
-    box.querySelector('.vazio').textContent = !agenda ? 'Abra a Gabi no computador para trazer a agenda' : eventos.length ? '' : 'Nada marcado hoje';
-    var proximoMarcado = false, mostrados = 0;
-    // os que já passaram somem se a lista estiver cheia, para caber o que vem pela frente
-    var passados = eventos.filter(function (e) { return !e.diaTodo && e.fim && new Date(e.fim).getTime() < agora; }).length;
-    var pular = Math.max(0, Math.min(passados, eventos.length - MAX_EVENTOS));
-    eventos.slice(pular).forEach(function (e) {
-      if (mostrados >= MAX_EVENTOS) return;
-      mostrados++;
-      var li = document.createElement('li'), b = document.createElement('b'), t = document.createTextNode(e.titulo);
-      b.textContent = e.diaTodo ? 'DIA' : horaBR(e.inicio);
-      li.appendChild(b); li.appendChild(t);
-      if (e.local) { var s = document.createElement('span'); s.textContent = e.local; li.appendChild(s); }
-      if (!e.diaTodo) {
-        var ini = new Date(e.inicio).getTime(), fim = new Date(e.fim).getTime();
-        if (fim < agora) li.className = 'passou';
-        else if (ini <= agora) li.className = 'agora';
-        else if (!proximoMarcado) { li.className = 'proximo'; proximoMarcado = true; }
-      }
-      ul.appendChild(li);
-    });
-    box.querySelector('.atualizada').textContent = agenda && agenda.atualizada && agenda.atualizada.toMillis
-      ? 'ATUALIZADA ÀS ' + horaBR(agenda.atualizada.toMillis()) : '';
+    var box = $('agenda'), dias = box.querySelector('.dias'), agora = Date.now(), algum = false, carregado = false, total = 0;
+    dias.innerHTML = '';
+    for (var i = 0; i < DIAS_SEMANA; i++) {
+      var key = diaKeyMais(i), ag = agendas[key], eventos = (ag && ag.eventos) || [];
+      if (ag) carregado = true;
+      if (!eventos.length) continue;
+      algum = true;
+      var h = document.createElement('h4'), ul = document.createElement('ul'), proximoMarcado = false;
+      h.textContent = tituloDoDia(key, i);
+      if (i === 0) h.className = 'hoje';
+      eventos.forEach(function (e) {
+        var li = document.createElement('li'), b = document.createElement('b');
+        b.textContent = e.diaTodo ? 'DIA' : horaBR(e.inicio);
+        li.appendChild(b); li.appendChild(document.createTextNode(e.titulo));
+        if (e.local) { var s = document.createElement('span'); s.textContent = e.local; li.appendChild(s); }
+        // hoje: o que já passou fica apagado, o que está acontecendo fica marcado e o próximo ganha a setinha
+        if (i === 0 && !e.diaTodo) {
+          var ini = new Date(e.inicio).getTime(), fim = new Date(e.fim).getTime();
+          if (fim < agora) li.className = 'passou';
+          else if (ini <= agora) li.className = 'agora';
+          else if (!proximoMarcado) { li.className = 'proximo'; proximoMarcado = true; }
+        }
+        ul.appendChild(li);
+        total++;
+      });
+      dias.appendChild(h); dias.appendChild(ul);
+    }
+    box.querySelector('.vazio').textContent = !carregado ? 'Abra a Gabi no computador para trazer a agenda' : algum ? '' : 'Nada marcado nos próximos 7 dias';
+    var hoje = agendas[diaKeyMais(0)];
+    box.querySelector('.atualizada').textContent = hoje && hoje.atualizada && hoje.atualizada.toMillis
+      ? 'ATUALIZADA ÀS ' + horaBR(hoje.atualizada.toMillis()) : '';
   }
 
+  // um ouvinte por dia; na virada do dia troca a janela de 7 dias
   function ouvirAgenda() {
     if (agendaKey === hojeKey() && unsubAgenda) return;
     if (unsubAgenda) unsubAgenda();
-    agendaKey = hojeKey(); agenda = null;
-    unsubAgenda = fdb.collection('agenda').doc(agendaKey).onSnapshot(function (doc) {
-      agenda = doc.exists ? doc.data() : null; renderAgenda();
-    }, function () { agenda = null; renderAgenda(); });
+    agendaKey = hojeKey(); agendas = {};
+    var parar = [];
+    for (var i = 0; i < DIAS_SEMANA; i++) (function (key) {
+      parar.push(fdb.collection('agenda').doc(key).onSnapshot(function (doc) {
+        agendas[key] = doc.exists ? doc.data() : null; renderAgenda();
+      }, function () { delete agendas[key]; renderAgenda(); }));
+    })(diaKeyMais(i));
+    unsubAgenda = function () { parar.forEach(function (f) { f(); }); };
     renderAgenda();
   }
   setInterval(function () { if (unsubAgenda) { ouvirAgenda(); renderAgenda(); } }, 60000);   // passa o "agora" e vira o dia
@@ -542,7 +575,7 @@ button {
     else {
       if (unsubDia) unsubDia(); unsubDia = null; dia = {}; renderAprov();
       if (unsubTarefas) unsubTarefas(); unsubTarefas = null; tarefas = []; renderTarefas();
-      if (unsubAgenda) unsubAgenda(); unsubAgenda = null; agenda = null; agendaKey = '';
+      if (unsubAgenda) unsubAgenda(); unsubAgenda = null; agendas = {}; agendaKey = '';
     }
   });
   setInterval(function () { if (unsubDia) ouvirDia(); }, 60000);   // vira o dia à meia-noite
